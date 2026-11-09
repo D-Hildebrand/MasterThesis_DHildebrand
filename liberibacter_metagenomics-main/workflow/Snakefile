@@ -1,0 +1,74 @@
+include: "rules/globals.smk" # imports SAMPLES, SUFFIX and HOST_GENOME_NAME
+include: "rules/quality_control.smk"
+include: "rules/bwa_alligner.smk"
+include: "rules/remove_host_reads.smk"
+include: "rules/krona_plots.smk"
+include: "rules/summarize_kaiju.smk"
+
+
+############################
+### PIPELINE STARTS HERE ###
+############################
+
+
+rule all:
+    input:
+        expand("results/kaiju/krona/{sample}.html", sample=SAMPLES),
+        expand("results/kaiju/tsv/{sample}_results.tsv", sample=SAMPLES),
+        "results/summary_kaiju/kaiju_summary_complete.tsv"
+
+
+rule kaiju:
+    input:
+        reads=["resources/nonhost_reads/{sample}_1." + SUFFIX, "resources/nonhost_reads/{sample}_1." + SUFFIX],
+        nodes= config['kaiju']['nodes'],
+        database= config['kaiju']['database']
+    output:
+        kaiju_out="results/kaiju/txt/{sample}_results.txt"
+    params:
+        mode=config['kaiju']['mode'],# Run mode (e.g., "mem" or "greedy")
+        mismatches=config['kaiju']['mismatches'],# Number of mismatches allowed (default: 3)
+        min_match_length=config['kaiju']['min_match_length'],# Minimum match length (default: 11)
+        min_score=config['kaiju']['min_score'],# Minimum match score (default: 65)
+        e_value=config['kaiju']['e_value'],# Minimum E-value (default: 0.01)
+    threads: config['kaiju']['threads']
+    conda:
+        "envs/kaiju.yaml"
+    shell:
+        """
+        kaiju \
+            -t {input.nodes} \
+            -f {input.database} \
+            -i {input.reads[0]} \
+            -j {input.reads[1]} \
+            -o {output.kaiju_out} \
+            -z {threads} \
+            -a {params.mode} \
+            -e {params.mismatches} \
+            -m {params.min_match_length} \
+            -s {params.min_score} \
+            -E {params.e_value}
+        """
+
+
+rule kaiju_to_table:
+    input:
+        kaiju_out="results/kaiju/txt/{sample}_results.txt",
+    output:
+        table="results/kaiju/tsv/{sample}_results.tsv",
+    params:
+        nodes=config['kaiju']['nodes'],
+        names=config['kaiju']['names']
+    conda:
+        "envs/kaiju.yaml"
+    shell:
+        """
+            kaiju2table \
+            -t {params.nodes} \
+            -n {params.names} \
+            -r species \
+            -o {output.table} \
+            -u \
+            {input.kaiju_out}
+        """
+

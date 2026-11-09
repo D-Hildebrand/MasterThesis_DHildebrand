@@ -1,0 +1,1 @@
+Here the results of the pipeline are stored

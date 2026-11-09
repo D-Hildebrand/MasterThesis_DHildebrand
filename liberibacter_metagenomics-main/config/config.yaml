@@ -1,0 +1,92 @@
+samples_dir: "/home/eyber002/lustre/lina_2024/"
+suffix_samples: "fq" # fq, fastq, fq.gz or fastq.gz
+sample_dir_structure: "nested" # can be either "nested" or "single"
+
+# nested has the following structure /sample_1/sample_1.fq, /sample_2/sample_2.fq
+# samples_dir/
+# ├─ A/
+# │  ├─ A_1.fq
+# │  ├─ A_2.fq
+# ├─ B/
+# │  ├─ B_1.fq
+# │  ├─ B_2.fq
+# ├─ C/
+# │  ├─ C_1.fq
+# │  ├─ C_2.fq
+
+# single has the following structure
+# samples_dir/
+# ├─ A_1.fq
+# ├─ A_2.fq
+# ├─ B_1.fq
+# ├─ B_2.fq
+
+
+##############################################
+# fastp_pe
+# Trims low-quality reads and removes adapters.
+##############################################
+fastp_pe:
+  threads: 12
+
+
+##############################################
+# bwa_index
+# Index the genome to prepare for mapping
+##############################################
+bwa_index:
+  genome: "/home/eyber002/lustre/shotgun_pipeline/resources/genomes/GCA_022201045.1_DVS_A1.0_genomic.fna"
+  alg: "bwtsw"
+  threads: 12
+
+
+##############################################
+# bwa_mem
+# Aligns trimmed reads to a genome of choice.
+##############################################
+bwa_mem:
+  extra: r"-R '@RG\tID:{sample}]\tSM:{sample}'"
+  sorting: "none"  # Options: 'none', 'samtools', 'picard'
+  sort_order: "queryname"  # Options: 'queryname', 'coordinate'
+  sort_extra: ""
+  threads: 12
+
+##############################################
+# samtools_flagstat
+# Generates mapping statistics for BAM files.
+##############################################
+flagstat:
+  extra: "-O tsv"
+  threads: 6
+
+##############################################
+# samtools_view
+# Extracts paired reads that did not align.
+##############################################
+view:
+  extra: "-f 12"
+  threads: 6
+
+##############################################
+# samtools_fastq_separate
+# Converts BAM to paired FASTQ files, discarding unpaired reads.
+##############################################
+separate:
+  collate: ""
+  fastq: "-n"
+  threads: 12
+
+##############################################
+# kaiju
+# Classifies reads taxonomically using Kaiju.
+##############################################
+kaiju:
+  mode: "greedy"  # Options: "mem", "greedy"
+  mismatches: 3  # Allowed mismatches
+  min_match_length: 11  # Minimum match length
+  min_score: 65  # Minimum match score
+  e_value: 0.01  # E-value threshold
+  threads: 48 # Please make this number the same as -c when calling snakemake
+  nodes: "resources/kaiju/nodes.dmp"
+  database: "resources/kaiju/kaiju_db_nr_euk.fmi"
+  names: "resources/kaiju/names.dmp"

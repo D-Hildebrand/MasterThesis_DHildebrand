@@ -1,0 +1,6 @@
+name: sra_toolkit_env
+channels:
+  - bioconda
+  - conda-forge
+dependencies:
+  - sra-tools
